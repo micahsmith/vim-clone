@@ -1,32 +1,35 @@
-use std::io::{self};
+use std::io::{self, Read, StdinLock};
+use std::os::unix::io::AsRawFd;
 
 mod terminal;
 use terminal::Terminal;
 
-fn read_loop() {
-    let mut buffer = String::new();
+fn read_loop(handle: &mut StdinLock) {
+    let mut buf: [u8; 1] = [0; 1];
+
     loop {
-        let mut input: &str = "";
-
-        match io::stdin().read_line(&mut buffer) {
-            Ok(_) => input = buffer.trim_end(),
+        match handle.read(&mut buf) {
             Err(e) => println!("{}", e),
+            _ => {},
         }
 
-        match input {
-            "q" => break,
-            _ => {}
+        match buf[0] {
+            b'q' => break,
+            _ => println!("{:?}", buf),
         }
 
-        println!("{}", input);
-        buffer.clear();
+        println!("{:?}", buf);
     }
 }
 
 fn main() -> io::Result<()> {
-    let terminal = Terminal::new();
+    let stdin = io::stdin();
+    let mut handle = stdin.lock();
+    let terminal = Terminal::new(handle.as_raw_fd());
+
     terminal.enable_raw_mode();
-    read_loop();
+    read_loop(&mut handle);
     terminal.disable_raw_mode();
+
     Ok(())
 }

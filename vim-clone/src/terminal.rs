@@ -9,12 +9,11 @@ pub struct Terminal {
 }
 
 impl Terminal {
-    pub fn new() -> Terminal {
-        let fd: RawFd = 0;
-        let termios = Termios::from_fd(fd).unwrap();
+    pub fn new(stdin: RawFd) -> Terminal {
+        let termios = Termios::from_fd(stdin).unwrap();
 
         return Terminal {
-            fd: fd,
+            fd: stdin,
             initial: termios,
             mutable: termios.clone(),
         };
@@ -22,7 +21,7 @@ impl Terminal {
 
     pub fn enable_raw_mode(&self) {
         let mut termios = self.mutable;
-        termios.c_lflag &= !(ECHO);
+        termios.c_lflag &= !(ECHO | ICANON);
         tcsetattr(self.fd, TCSAFLUSH, &termios).unwrap();
     }
 
