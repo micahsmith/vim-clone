@@ -1,58 +1,32 @@
 use std::io::{self};
-use std::os::unix::io::RawFd;
-use termios::*;
 
-#[derive(Debug)]
-struct Terminal {
-    fd: RawFd,
-    initial: Termios,
-    mutable: Termios,
-}
+mod terminal;
+use terminal::Terminal;
 
-impl Terminal {
-    fn new() -> Terminal {
-        let fd: RawFd = 0;
-        let termios = Termios::from_fd(fd).unwrap();
+fn read_loop() {
+    let mut buffer = String::new();
+    loop {
+        let mut input: &str = "";
 
-        return Terminal {
-            fd: fd,
-            initial: termios,
-            mutable: termios.clone(),
-        };
-    }
+        match io::stdin().read_line(&mut buffer) {
+            Ok(_) => input = buffer.trim_end(),
+            Err(e) => println!("{}", e),
+        }
 
-    fn enable_raw_mode(&mut self) {
-        let mut termios = self.mutable;
-        termios.c_lflag &= !(ECHO);
-        tcsetattr(self.fd, TCSAFLUSH, &termios).unwrap();
-    }
+        match input {
+            "q" => break,
+            _ => {}
+        }
 
-    fn disable_raw_mode(&mut self) {
-        let termios = self.initial;
-        tcsetattr(self.fd, TCSAFLUSH, &termios).unwrap();
+        println!("{}", input);
+        buffer.clear();
     }
 }
 
 fn main() -> io::Result<()> {
-    let mut terminal = Terminal::new();
+    let terminal = Terminal::new();
     terminal.enable_raw_mode();
-
-    let mut buffer = String::new();
-    loop {
-        match io::stdin().read_line(&mut buffer) {
-            Ok(n) => {
-                if buffer == "q\n" {
-                    break;
-                }
-                println!("{} bytes read", n);
-                println!("{}", buffer);
-            }
-            Err(e) => println!("{}", e),
-        }
-
-        buffer.clear();
-    }
-
+    read_loop();
     terminal.disable_raw_mode();
     Ok(())
 }
