@@ -4,21 +4,34 @@ use std::os::unix::io::AsRawFd;
 mod terminal;
 use terminal::Terminal;
 
+fn is_cntrl(c: u8) -> bool {
+    if c < 32 || c == 127 {
+        return true;
+    }
+    return false;
+}
+
 fn read_loop(handle: &mut StdinLock) {
-    let mut buf: [u8; 1] = [0; 1];
+    let mut buf: [u8; 4];
 
     loop {
+        buf = [0, 0, 0, 0];
+
         match handle.read(&mut buf) {
             Err(e) => println!("{}", e),
-            _ => {},
+            _ => {}
         }
 
         match buf[0] {
             b'q' => break,
-            _ => println!("{:?}", buf),
+            c => {
+                if !is_cntrl(c) {
+                    print!("{} ({})\r\n", c, c as char)
+                } else {
+                    print!("{:?}\r\n", buf);
+                }
+            }
         }
-
-        println!("{:?}", buf);
     }
 }
 
