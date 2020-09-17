@@ -1,6 +1,7 @@
 use std::io::{self, Read, StdinLock};
 use std::os::unix::io::AsRawFd;
 
+mod screen;
 mod terminal;
 use terminal::Terminal;
 
@@ -17,13 +18,16 @@ fn is_cntrl(c: u8) -> bool {
     return false;
 }
 
-fn read_loop(handle: &mut StdinLock) -> io::Result<()> {
+fn read_loop(stdin: &mut StdinLock) -> io::Result<()> {
     let mut buf: [u8; 4];
 
     loop {
         buf = [0, 0, 0, 0];
 
-        handle.read(&mut buf)?;
+        screen::refresh()?;
+        screen::reset_cursor()?;
+
+        stdin.read(&mut buf)?;
 
         match buf[0] {
             CTRL_Q => break,
@@ -35,6 +39,9 @@ fn read_loop(handle: &mut StdinLock) -> io::Result<()> {
                 }
             }
         }
+
+        screen::draw_rows()?;
+        screen::reset_cursor()?;
     }
 
     return Ok(());
@@ -43,10 +50,16 @@ fn read_loop(handle: &mut StdinLock) -> io::Result<()> {
 fn main() -> io::Result<()> {
     let stdin = io::stdin();
     let mut handle = stdin.lock();
+
     let terminal = Terminal::new(handle.as_raw_fd());
 
     terminal.enable_raw_mode();
-    read_loop(&mut handle)?;
+    match read_loop(&mut handle) {
+        _ => {
+            screen::refresh()?;
+            screen::reset_cursor()?;
+        }
+    }
     terminal.disable_raw_mode();
 
     return Ok(());
